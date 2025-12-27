@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FTMS Virtual World - Standalone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            background-color: #0f172a; 
+            color: white; 
+            overflow-x: hidden; 
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .glass { 
+            background: rgba(30, 41, 59, 0.7); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        #video-container { 
+            position: relative; 
+            width: 100%; 
+            height: 65vh; 
+            border-radius: 1.5rem; 
+            overflow: hidden; 
+            background: #000; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        video { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+        }
+        .overlay-data { 
+            position: absolute; 
+            bottom: 30px; 
+            left: 30px; 
+            z-index: 10; 
+            pointer-events: none; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-10 min-h-screen">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+            <div>
+                <h1 class="text-4xl font-black tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-emerald-400 bg-clip-text text-transparent">
+                    FTMS MOTION
+                </h1>
+                <p class="text-slate-400 font-medium">Standalone Virtual World Sync</p>
+            </div>
+            <div id="status-badge" class="px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest bg-slate-800 text-slate-500 border border-slate-700 transition-all duration-500">
+                Ready to Connect
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Settings Sidebar -->
+            <div class="lg:col-span-4 space-y-6">
+                <div class="glass p-8 rounded-3xl">
+                    <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                        <span class="w-2 h-6 bg-blue-500 rounded-full"></span>
+                        Device Setup
+                    </h2>
+                    
+                    <div class="space-y-6">
+                        <button id="connect-btn" class="w-full bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-blue-900/30 flex items-center justify-center gap-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg>
+                            SCAN FOR MACHINE
+                        </button>
+
+                        <div class="flex p-1 bg-slate-900/50 rounded-xl border border-slate-800">
+                            <button id="mode-cycling" class="flex-1 py-3 rounded-lg bg-blue-600 text-white text-sm font-bold transition-all">Cycling</button>
+                            <button id="mode-running" class="flex-1 py-3 rounded-lg text-slate-400 text-sm font-bold hover:text-white transition-all">Running</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass p-8 rounded-3xl">
+                    <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                        <span class="w-2 h-6 bg-emerald-500 rounded-full"></span>
+                        Environment
+                    </h2>
+                    <div class="space-y-6">
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <span class="text-slate-400 font-bold text-xs uppercase tracking-wider">Baseline (1.0x Speed)</span>
+                                <span id="base-speed-display" class="text-blue-400 font-black">15.0 km/h</span>
+                            </div>
+                            <input type="range" id="base-speed-slider" min="5" max="40" value="15" step="0.5" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        
+                        <div class="p-4 bg-blue-500/5 rounded-2xl border border-blue-500/10">
+                            <p class="text-[11px] leading-relaxed text-slate-400">
+                                <strong class="text-blue-400">Dynamic Sync:</strong> The video playback rate shifts in real-time. If you pedal faster than the baseline, the world speeds up.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Simulation View -->
+            <div class="lg:col-span-8 space-y-6">
+                <div id="video-container" class="group">
+                    <video id="virtual-video" loop muted playsinline poster="https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=1200">
+                        <source src="https://assets.mixkit.co/videos/preview/mixkit-cycling-on-a-paved-road-in-the-forest-4254-large.mp4" type="video/mp4">
+                    </video>
+                    
+                    <!-- Stats Overlays -->
+                    <div class="overlay-data flex flex-wrap gap-4">
+                        <div class="glass px-6 py-4 rounded-2xl border-l-4 border-l-blue-500 shadow-2xl">
+                            <div class="text-[10px] uppercase tracking-widest text-blue-400 font-black mb-1">Current Speed</div>
+                            <div class="text-4xl font-black tabular-nums tracking-tighter"><span id="live-speed">0.0</span> <span class="text-lg font-medium text-slate-500 ml-1">km/h</span></div>
+                        </div>
+                        <div class="glass px-6 py-4 rounded-2xl border-l-4 border-l-emerald-500 shadow-2xl">
+                            <div class="text-[10px] uppercase tracking-widest text-emerald-400 font-black mb-1">Playback Rate</div>
+                            <div class="text-4xl font-black tabular-nums tracking-tighter"><span id="live-rate">0.00</span><span class="text-lg font-medium text-slate-500 ml-1">x</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Disconnected Overlay -->
+                    <div id="video-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-sm z-20 transition-opacity duration-500">
+                        <div class="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                            <svg class="w-10 h-10 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Awaiting Connection</h3>
+                        <p class="text-slate-400 text-sm">Connect your FTMS machine to start moving</p>
+                    </div>
+                </div>
+
+                <!-- Secondary Stats Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="glass p-6 rounded-2xl text-center border-b-2 border-transparent hover:border-blue-500 transition-colors">
+                        <div class="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Primary Stat</div>
+                        <div id="stat-primary" class="text-2xl font-black text-white">-</div>
+                    </div>
+                    <div class="glass p-6 rounded-2xl text-center border-b-2 border-transparent hover:border-pink-500 transition-colors">
+                        <div class="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Heart Rate</div>
+                        <div id="stat-hr" class="text-2xl font-black text-pink-500">-</div>
+                    </div>
+                    <div class="glass p-6 rounded-2xl text-center border-b-2 border-transparent hover:border-emerald-500 transition-colors">
+                        <div class="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Distance</div>
+                        <div id="stat-dist" class="text-2xl font-black text-white">0.0 km</div>
+                    </div>
+                    <div class="glass p-6 rounded-2xl text-center border-b-2 border-transparent hover:border-yellow-500 transition-colors">
+                        <div class="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Time</div>
+                        <div id="stat-time" class="text-2xl font-black text-white">00:00</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI Feedback Toast -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 glass px-8 py-4 rounded-2xl border-blue-500/30 text-white font-bold text-sm shadow-2xl opacity-0 translate-y-10 transition-all duration-500 z-50 pointer-events-none">
+        System Ready
+    </div>
+
+    <script>
+        /**
+         * FTMS Standalone Engine
+         * Handles Bluetooth connection and dynamic video control.
+         */
+
+        const UUIDS = {
+            SERVICE: 0x1826,
+            TREADMILL: 0x2ACD,
+            BIKE: 0x2AD2
+        };
+
+        let activeMode = 'cycling';
+        let baselineSpeed = 15.0;
+        let currentSpeedKmh = 0;
+        let isStarted = false;
+        let bleDevice, bleServer;
+
+        // Cache UI elements
+        const els = {
+            connectBtn: document.getElementById('connect-btn'),
+            status: document.getElementById('status-badge'),
+            video: document.getElementById('virtual-video'),
+            placeholder: document.getElementById('video-placeholder'),
+            liveSpeed: document.getElementById('live-speed'),
+            liveRate: document.getElementById('live-rate'),
+            slider: document.getElementById('base-speed-slider'),
+            sliderVal: document.getElementById('base-speed-display'),
+            toast: document.getElementById('toast'),
+            modeC: document.getElementById('mode-cycling'),
+            modeR: document.getElementById('mode-running'),
+            statPrimary: document.getElementById('stat-primary')
+        };
+
+        function notify(msg) {
+            els.toast.textContent = msg;
+            els.toast.classList.replace('opacity-0', 'opacity-100');
+            els.toast.classList.replace('translate-y-10', 'translate-y-0');
+            setTimeout(() => {
+                els.toast.classList.replace('opacity-100', 'opacity-0');
+                els.toast.classList.replace('translate-y-0', 'translate-y-10');
+            }, 3000);
+        }
+
+        function updateSimulation() {
+            if (!isStarted) return;
+            
+            // Calculate playback rate (Actual / Target)
+            let rate = currentSpeedKmh / baselineSpeed;
+            
+            // Limit rate to avoid video engine stutter (0.0 to 4.0)
+            const clampedRate = Math.max(0, Math.min(rate, 4.0));
+            
+            els.video.playbackRate = clampedRate;
+            els.liveRate.textContent = clampedRate.toFixed(2);
+            els.liveSpeed.textContent = currentSpeedKmh.toFixed(1);
+
+            if (clampedRate > 0.05 && els.video.paused) {
+                els.video.play().catch(() => {});
+            } else if (clampedRate <= 0.05 && !els.video.paused) {
+                els.video.pause();
+            }
+        }
+
+        // --- Interaction Listeners ---
+
+        els.slider.oninput = (e) => {
+            baselineSpeed = parseFloat(e.target.value);
+            els.sliderVal.textContent = `${baselineSpeed.toFixed(1)} km/h`;
+            updateSimulation();
+        };
+
+        els.modeC.onclick = () => {
+            activeMode = 'cycling';
+            els.modeC.className = "flex-1 py-3 rounded-lg bg-blue-600 text-white text-sm font-bold transition-all";
+            els.modeR.className = "flex-1 py-3 rounded-lg text-slate-400 text-sm font-bold hover:text-white transition-all";
+            notify("Mode: Cycling (Power/Speed Sync)");
+        };
+
+        els.modeR.onclick = () => {
+            activeMode = 'running';
+            els.modeR.className = "flex-1 py-3 rounded-lg bg-blue-600 text-white text-sm font-bold transition-all";
+            els.modeC.className = "flex-1 py-3 rounded-lg text-slate-400 text-sm font-bold hover:text-white transition-all";
+            notify("Mode: Running (Belt Speed Sync)");
+        };
+
+        // --- Web Bluetooth Core ---
+
+        els.connectBtn.onclick = async () => {
+            try {
+                if (!navigator.bluetooth) {
+                    throw new Error("Browser doesn't support Web Bluetooth.");
+                }
+
+                notify("Scanning for Fitness Machines...");
+                
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [UUIDS.SERVICE] }],
+                    optionalServices: ['heart_rate']
+                });
+
+                els.status.textContent = "Connecting...";
+                els.status.className = "px-6 py-2 rounded-full text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/50";
+
+                bleServer = await bleDevice.gatt.connect();
+                const service = await bleServer.getPrimaryService(UUIDS.SERVICE);
+
+                const charUuid = activeMode === 'cycling' ? UUIDS.BIKE : UUIDS.TREADMILL;
+                const characteristic = await service.getCharacteristic(charUuid);
+
+                await characteristic.startNotifications();
+                characteristic.addEventListener('characteristicvaluechanged', (e) => {
+                    const data = e.target.value;
+                    let speed = 0;
+
+                    if (activeMode === 'cycling') {
+                        // FTMS Bike Data: Speed is 3rd and 4th bytes (index 2-3)
+                        speed = data.getUint16(2, true) / 100.0;
+                        const watts = data.getInt16(6, true);
+                        els.statPrimary.textContent = `${watts}W`;
+                    } else {
+                        // FTMS Treadmill Data
+                        speed = data.getUint16(2, true) / 100.0;
+                        els.statPrimary.textContent = `${speed.toFixed(1)} km/h`;
+                    }
+
+                    currentSpeedKmh = speed;
+                    updateSimulation();
+                });
+
+                // Update UI state
+                isStarted = true;
+                els.placeholder.classList.add('opacity-0');
+                setTimeout(() => els.placeholder.classList.add('hidden'), 500);
+                els.status.textContent = "Synchronized";
+                els.status.className = "px-6 py-2 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/50";
+                
+                els.video.play();
+                notify("Device Linked Successfully");
+
+            } catch (err) {
+                console.error(err);
+                notify("Error: " + err.message);
+                els.status.textContent = "Link Failed";
+                els.status.className = "px-6 py-2 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/50";
+            }
+        };
+
+        // Handle disconnects
+        if (bleDevice) {
+            bleDevice.addEventListener('gattserverdisconnected', () => {
+                isStarted = false;
+                els.placeholder.classList.remove('hidden');
+                els.placeholder.classList.remove('opacity-0');
+                els.status.textContent = "Disconnected";
+                notify("Machine Connection Lost");
+            });
+        }
+    </script>
+</body>
+</html>
